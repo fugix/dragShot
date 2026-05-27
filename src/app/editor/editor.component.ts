@@ -36,6 +36,8 @@ interface FragmentLayer extends BaseLayer {
 type Layer = EmojiLayer | FragmentLayer;
 
 const EMOJIS = [
+  // Окуляри
+  '🕶️','👓','🥽','😎','🤓','🥸',
   // Обличчя
   '😀','😁','😂','🤣','🥰','😍','🤩','😎','🥳','😜',
   '😝','🤪','😱','🤯','🥺','😭','😤','🤬','😈','🤡',
