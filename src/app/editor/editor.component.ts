@@ -102,37 +102,44 @@ const EMOJIS = [
 
       <div class="workspace">
         <!-- Emoji palette -->
-        <div class="emoji-panel">
-          <div class="panel-title">Емодзі</div>
-          <input
-            class="emoji-search"
-            type="text"
-            placeholder="Пошук…"
-            [value]="emojiSearch()"
-            (input)="onEmojiSearch($event)"
-          />
-          <div class="emoji-grid">
-            @for (e of filteredEmojis(); track e) {
-              <button
-                class="emoji-btn"
-                [class.selected]="selectedEmoji() === e"
-                (click)="selectEmoji(e)"
-                title="Додати {{ e }}"
-              >{{ e }}</button>
-            }
-            @if (!filteredEmojis().length) {
-              <div class="emoji-empty">Нічого не знайдено</div>
-            }
+        <div class="emoji-panel" [class.collapsed]="!emojiPanelOpen()">
+          <div class="panel-header">
+            <span class="panel-title">Емодзі</span>
+            <button class="panel-toggle" (click)="emojiPanelOpen.set(!emojiPanelOpen())">
+              {{ emojiPanelOpen() ? '▾' : '▸' }}
+            </button>
           </div>
-          @if (selectedEmoji()) {
-            <div class="panel-hint">
-              Клацніть на фото, щоб розмістити {{ selectedEmoji() }}
+          @if (emojiPanelOpen()) {
+            <input
+              class="emoji-search"
+              type="text"
+              placeholder="Пошук…"
+              [value]="emojiSearch()"
+              (input)="onEmojiSearch($event)"
+            />
+            <div class="emoji-grid">
+              @for (e of filteredEmojis(); track e) {
+                <button
+                  class="emoji-btn"
+                  [class.selected]="selectedEmoji() === e"
+                  (click)="selectEmoji(e)"
+                  title="Додати {{ e }}"
+                >{{ e }}</button>
+              }
+              @if (!filteredEmojis().length) {
+                <div class="emoji-empty">Нічого не знайдено</div>
+              }
             </div>
-          }
-          @if (activeTool() === 'pencil') {
-            <div class="panel-hint pencil-hint">
-              ✏️ Намалюйте контур — виділена область стане окремим шаром
-            </div>
+            @if (selectedEmoji()) {
+              <div class="panel-hint">
+                Клацніть на фото, щоб розмістити {{ selectedEmoji() }}
+              </div>
+            }
+            @if (activeTool() === 'pencil') {
+              <div class="panel-hint pencil-hint">
+                ✏️ Намалюйте контур — виділена область стане окремим шаром
+              </div>
+            }
           }
         </div>
 
@@ -244,13 +251,30 @@ const EMOJIS = [
         overflow: hidden;
       }
 
+      .panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-shrink: 0;
+      }
+
       .panel-title {
         font-size: 0.75rem;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.08em;
         color: #64748b;
-        flex-shrink: 0;
+      }
+
+      .panel-toggle {
+        display: none; /* видимий тільки на мобільному */
+        background: none;
+        border: none;
+        color: #64748b;
+        font-size: 1rem;
+        cursor: pointer;
+        padding: 0.1rem 0.3rem;
+        line-height: 1;
       }
 
       .emoji-search {
@@ -372,6 +396,56 @@ const EMOJIS = [
       @keyframes fadeOut {
         to { opacity: 0; transform: translateX(-50%) translateY(-6px); }
       }
+
+      /* ── Мобільний: панель знизу ── */
+      @media (max-width: 640px) {
+        .workspace {
+          flex-direction: column-reverse; /* canvas зверху, панель знизу */
+        }
+
+        .emoji-panel {
+          width: 100%;
+          border-right: none;
+          border-top: 1px solid rgba(255,255,255,0.07);
+          padding: 0.5rem 0.75rem;
+          gap: 0.4rem;
+          flex-shrink: 0;
+        }
+
+        .emoji-panel.collapsed {
+          /* Показуємо тільки заголовок */
+        }
+
+        .panel-toggle {
+          display: block; /* показуємо кнопку згортання */
+        }
+
+        .emoji-grid {
+          /* 2 рядки, горизонтальний скрол */
+          grid-template-columns: unset;
+          grid-template-rows: repeat(2, 1fr);
+          grid-auto-flow: column;
+          grid-auto-columns: 36px;
+          overflow-x: auto;
+          overflow-y: hidden;
+          gap: 3px;
+          padding-bottom: 4px; /* місце для скролбару */
+        }
+
+        .emoji-search {
+          font-size: 0.85rem;
+        }
+
+        .panel-hint {
+          display: none; /* не показуємо підказки на мобільному */
+        }
+
+        .canvas-wrapper {
+          flex: 1;
+          min-height: 0;
+          padding: 0.5rem;
+        }
+      }
     `,
   ],
 })
@@ -388,6 +462,7 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
   activeTool = signal<Tool>('move');
   selectedEmoji = signal('');
   emojiSearch = signal('');
+  emojiPanelOpen = signal(true);
   filteredEmojis = computed(() => {
     const q = this.emojiSearch().trim();
     return q ? EMOJIS.filter(e => e.includes(q)) : EMOJIS;
