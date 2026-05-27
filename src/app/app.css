@@ -99,8 +99,30 @@
   overflow: auto;
 }
 
+.user-badge {
+  font-size: 0.75rem;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+
+.error-banner {
+  background: rgba(239, 68, 68, 0.12);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+  font-size: 0.8rem;
+  padding: 0.4rem 1.5rem;
+  flex-shrink: 0;
+}
+
 @media (max-width: 640px) {
   .nav-icon {
+    display: none;
+  }
+
+  .user-badge {
     display: none;
   }
 }

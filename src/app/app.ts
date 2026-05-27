@@ -1,8 +1,8 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { CameraComponent } from './camera/camera.component';
 import { EditorComponent } from './editor/editor.component';
 import { GalleryComponent } from './gallery/gallery.component';
-import { StorageService } from './services/storage.service';
+import { CloudGalleryService } from './services/cloud-gallery.service';
 
 type View = 'camera' | 'editor' | 'gallery';
 
@@ -13,26 +13,32 @@ type View = 'camera' | 'editor' | 'gallery';
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
-export class App {
-  private storage = inject(StorageService);
+export class App implements OnInit {
+  readonly cloudGallery = inject(CloudGalleryService);
 
-  view = signal<View>('camera');
+  view         = signal<View>('camera');
   currentPhoto = signal('');
-  photos = signal(this.storage.getPhotos());
+
+  // Проксі до сигналів сервісу
+  get photos()    { return this.cloudGallery.photos; }
+  get uploading() { return this.cloudGallery.uploading; }
+
+  async ngOnInit() {
+    await this.cloudGallery.loadPhotos();
+    this.cloudGallery.subscribeRealtime();
+  }
 
   onPhotoCaptured(dataUrl: string) {
     this.currentPhoto.set(dataUrl);
     this.view.set('editor');
   }
 
-  onPhotoSaved(dataUrl: string) {
-    this.storage.savePhoto(dataUrl);
-    this.photos.set(this.storage.getPhotos());
+  async onPhotoSaved(dataUrl: string) {
+    await this.cloudGallery.uploadPhoto(dataUrl);
   }
 
-  onDeletePhoto(id: string) {
-    this.storage.deletePhoto(id);
-    this.photos.set(this.storage.getPhotos());
+  onDeletePhoto(event: { id: string; storagePath: string }) {
+    this.cloudGallery.deletePhoto(event.id, event.storagePath);
   }
 
   goToCamera() {

@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { SavedPhoto } from '../services/storage.service';
+import { CloudPhoto } from '../services/cloud-gallery.service';
 
 @Component({
   selector: 'app-gallery',
@@ -12,28 +12,45 @@ import { SavedPhoto } from '../services/storage.service';
         <button class="btn-back" (click)="back.emit()">← Назад</button>
       </div>
 
-      @if (!photos.length) {
+      @if (loading) {
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <p>Завантаження фото…</p>
+        </div>
+      } @else if (!photos.length) {
         <div class="empty-state">
           <span class="empty-icon">🖼️</span>
-          <p>Немає збережених фото</p>
-          <small>Зробіть фото та збережіть його з редактора</small>
+          <p>Поки що немає фото</p>
+          <small>Зробіть фото та збережіть — воно з'явиться тут для всіх</small>
         </div>
       } @else {
         <div class="grid">
           @for (photo of photos; track photo.id) {
             <div class="photo-card">
-              <img [src]="photo.dataUrl" [alt]="'Знімок ' + photo.id" loading="lazy" />
+              <img [src]="photo.public_url" [alt]="'Знімок від ' + photo.username" loading="lazy" />
               <div class="card-overlay">
-                <span class="card-date">{{ formatDate(photo.savedAt) }}</span>
+                <div class="card-meta">
+                  <span class="card-author">👤 {{ photo.username }}</span>
+                  <span class="card-date">{{ formatDate(photo.created_at) }}</span>
+                </div>
                 <div class="card-actions">
                   <button class="card-btn" (click)="downloadPhoto(photo)" title="Завантажити">
                     ⬇️
                   </button>
-                  <button class="card-btn danger" (click)="deletePhoto.emit(photo.id)" title="Видалити">
-                    🗑️
-                  </button>
+                  @if (photo.user_id === currentUserId) {
+                    <button
+                      class="card-btn danger"
+                      (click)="deletePhoto.emit({ id: photo.id, storagePath: photo.storage_path })"
+                      title="Видалити"
+                    >
+                      🗑️
+                    </button>
+                  }
                 </div>
               </div>
+              @if (photo.user_id === currentUserId) {
+                <div class="own-badge" title="Ваше фото">Моє</div>
+              }
             </div>
           }
         </div>
@@ -42,24 +59,25 @@ import { SavedPhoto } from '../services/storage.service';
   `,
 })
 export class GalleryComponent {
-  @Input() photos: SavedPhoto[] = [];
-  @Output() back = new EventEmitter<void>();
-  @Output() deletePhoto = new EventEmitter<string>();
+  @Input() photos: CloudPhoto[] = [];
+  @Input() currentUserId = '';
+  @Input() loading = false;
 
-  formatDate(ts: number): string {
-    return new Date(ts).toLocaleString('uk-UA', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+  @Output() back        = new EventEmitter<void>();
+  @Output() deletePhoto = new EventEmitter<{ id: string; storagePath: string }>();
+
+  formatDate(iso: string): string {
+    return new Date(iso).toLocaleString('uk-UA', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
     });
   }
 
-  downloadPhoto(photo: SavedPhoto) {
+  downloadPhoto(photo: CloudPhoto) {
     const a = document.createElement('a');
-    a.href = photo.dataUrl;
+    a.href = photo.public_url;
     a.download = `dragshot-${photo.id.slice(0, 8)}.jpg`;
+    a.target = '_blank';
     a.click();
   }
 }

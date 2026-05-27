@@ -92,8 +92,18 @@ const EMOJIS = [
               <span class="btn-icon">🗑</span> Очистити
             </button>
           }
-          <button class="tool-btn save" (click)="saveToGallery()" title="Зберегти">
-            <span class="btn-icon">💾</span> Зберегти
+          <button
+            class="tool-btn save"
+            [class.saving]="saving"
+            [disabled]="saving"
+            (click)="saveToGallery()"
+            title="Зберегти"
+          >
+            @if (saving) {
+              <span class="btn-icon save-spinner">⏳</span> Збереження…
+            } @else {
+              <span class="btn-icon">💾</span> Зберегти
+            }
           </button>
           <button class="tool-btn secondary back-btn" (click)="back.emit()" title="Назад">
             ← Назад
@@ -168,6 +178,7 @@ const EMOJIS = [
 })
 export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Input() photoDataUrl = '';
+  @Input() saving = false;
   @Output() back = new EventEmitter<void>();
   @Output() saved = new EventEmitter<string>();
 

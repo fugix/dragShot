@@ -24,7 +24,18 @@
         }
       </button>
     </nav>
+
+    @if (cloudGallery.currentUsername) {
+      <div class="user-badge" title="Ваш псевдонім у спільній галереї">
+        👤 {{ cloudGallery.currentUsername }}
+      </div>
+    }
   </header>
+
+  <!-- Error banner -->
+  @if (cloudGallery.error()) {
+    <div class="error-banner">⚠️ {{ cloudGallery.error() }}</div>
+  }
 
   <!-- Main content -->
   <main class="app-main">
@@ -37,6 +48,7 @@
       @case ('editor') {
         <app-editor
           [photoDataUrl]="currentPhoto()"
+          [saving]="uploading()"
           (back)="goToCamera()"
           (saved)="onPhotoSaved($event)"
         />
@@ -44,6 +56,8 @@
       @case ('gallery') {
         <app-gallery
           [photos]="photos()"
+          [loading]="cloudGallery.loading()"
+          [currentUserId]="cloudGallery.currentUserId"
           (back)="goToCamera()"
           (deletePhoto)="onDeletePhoto($event)"
         />

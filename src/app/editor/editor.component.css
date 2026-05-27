@@ -57,6 +57,18 @@
   color: #c4b5fd;
 }
 .tool-btn.save:hover { background: rgba(124,58,237,0.35); }
+.tool-btn.save:disabled { opacity: 0.6; cursor: not-allowed; }
+.tool-btn.saving { opacity: 0.75; }
+
+.save-spinner {
+  display: inline-block;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
 
 .tool-btn.danger {
   color: #fca5a5;
