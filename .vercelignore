@@ -1,0 +1,9 @@
+# Vercel бере цей файл замість .gitignore для визначення що завантажувати.
+# environment.prod.ts тут НЕ вказано → Vercel його завантажить.
+# У .gitignore він залишається → git його не трекає.
+
+node_modules
+dist
+.angular/cache
+.playwright-mcp
+coverage
