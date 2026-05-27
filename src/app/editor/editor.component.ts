@@ -12,7 +12,7 @@ import {
   signal,
 } from '@angular/core';
 
-export type Tool = 'move' | 'select';
+export type Tool = 'move' | 'pencil';
 
 interface BaseLayer {
   id: string;
@@ -77,11 +77,11 @@ const EMOJIS = [
           </button>
           <button
             class="tool-btn"
-            [class.active]="activeTool() === 'select'"
-            (click)="setTool('select')"
-            title="Виділення (S)"
+            [class.active]="activeTool() === 'pencil'"
+            (click)="setTool('pencil')"
+            title="Виділення олівцем"
           >
-            <span>⬚</span> Виділити
+            <span>✏️</span> Олівець
           </button>
         </div>
         <div class="tool-sep"></div>
@@ -129,6 +129,11 @@ const EMOJIS = [
               Клацніть на фото, щоб розмістити {{ selectedEmoji() }}
             </div>
           }
+          @if (activeTool() === 'pencil') {
+            <div class="panel-hint pencil-hint">
+              ✏️ Намалюйте контур — виділена область стане окремим шаром
+            </div>
+          }
         </div>
 
         <!-- Canvas area -->
@@ -139,7 +144,7 @@ const EMOJIS = [
             (mousedown)="onMouseDown($event)"
             (mousemove)="onMouseMove($event)"
             (mouseup)="onMouseUp($event)"
-            (mouseleave)="onMouseUp($event)"
+            (mouseleave)="onMouseLeave($event)"
           ></canvas>
         </div>
       </div>
@@ -313,6 +318,12 @@ const EMOJIS = [
         flex-shrink: 0;
       }
 
+      .pencil-hint {
+        color: #a78bfa;
+        border-color: rgba(124,58,237,0.25);
+        background: rgba(124,58,237,0.06);
+      }
+
       /* ── Canvas ── */
       .canvas-wrapper {
         flex: 1;
@@ -382,6 +393,7 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
     return q ? EMOJIS.filter(e => e.includes(q)) : EMOJIS;
   });
   layers = signal<Layer[]>([]);
+  selectedLayerId = signal<string | null>(null);
   savedFlash = signal(false);
   canvasCursor = signal('default');
 
@@ -393,12 +405,16 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
   private dragOffsetX = 0;
   private dragOffsetY = 0;
 
-  // Selection state
-  private isSelecting = false;
-  private selStartX = 0;
-  private selStartY = 0;
-  private selEndX = 0;
-  private selEndY = 0;
+  // Resize state
+  private resizingLayerId: string | null = null;
+  private resizeHandle = '';
+  private resizeStartX = 0;
+  private resizeStartY = 0;
+  private resizeOrigin: { x: number; y: number; width: number; height: number } | null = null;
+
+  // Pencil (freehand) selection state
+  private isDrawing = false;
+  private pencilPoints: { x: number; y: number }[] = [];
 
   ngAfterViewInit() {
     this.ctx = this.canvasRef.nativeElement.getContext('2d')!;
@@ -438,7 +454,7 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   private updateCursor() {
     const tool = this.activeTool();
-    if (tool === 'select') {
+    if (tool === 'pencil') {
       this.canvasCursor.set('crosshair');
     } else if (this.selectedEmoji()) {
       this.canvasCursor.set('copy');
@@ -457,6 +473,36 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
       x: (e.clientX - rect.left) * scaleX,
       y: (e.clientY - rect.top) * scaleY,
     };
+  }
+
+  // ── Розмір маркера в координатах canvas (залежить від масштабу) ──
+  private handleSize(): number {
+    const rect = this.canvasRef.nativeElement.getBoundingClientRect();
+    const scale = this.canvasRef.nativeElement.width / rect.width;
+    return Math.max(10, 10 * scale); // ~10px на екрані
+  }
+
+  // ── 8 маркерів для FragmentLayer ──
+  private getHandles(l: FragmentLayer): { name: string; cx: number; cy: number; cursor: string }[] {
+    const { x, y, width: w, height: h } = l;
+    return [
+      { name: 'nw', cx: x,         cy: y,         cursor: 'nwse-resize' },
+      { name: 'n',  cx: x + w / 2, cy: y,         cursor: 'ns-resize'   },
+      { name: 'ne', cx: x + w,     cy: y,         cursor: 'nesw-resize' },
+      { name: 'e',  cx: x + w,     cy: y + h / 2, cursor: 'ew-resize'   },
+      { name: 'se', cx: x + w,     cy: y + h,     cursor: 'nwse-resize' },
+      { name: 's',  cx: x + w / 2, cy: y + h,     cursor: 'ns-resize'   },
+      { name: 'sw', cx: x,         cy: y + h,     cursor: 'nesw-resize' },
+      { name: 'w',  cx: x,         cy: y + h / 2, cursor: 'ew-resize'   },
+    ];
+  }
+
+  // ── Перевірка попадання у маркер ──
+  private hitHandle(x: number, y: number, layer: FragmentLayer) {
+    const hs = this.handleSize() / 2;
+    return this.getHandles(layer).find(
+      h => Math.abs(x - h.cx) <= hs && Math.abs(y - h.cy) <= hs
+    ) ?? null;
   }
 
   // ── Hit test: returns topmost layer at (x,y) ──
@@ -481,60 +527,110 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
     const { x, y } = this.toCanvasCoords(e);
     const tool = this.activeTool();
 
-    // Спершу перевіряємо чи клікнули на існуючий шар → перетягування
+    // 1. Перевіряємо маркери resize виділеного фрагмента
+    const selId = this.selectedLayerId();
+    if (selId) {
+      const selLayer = this.layers().find(l => l.id === selId);
+      if (selLayer?.type === 'fragment') {
+        const handle = this.hitHandle(x, y, selLayer);
+        if (handle) {
+          this.resizingLayerId = selId;
+          this.resizeHandle = handle.name;
+          this.resizeStartX = x;
+          this.resizeStartY = y;
+          this.resizeOrigin = { x: selLayer.x, y: selLayer.y, width: selLayer.width, height: selLayer.height };
+          this.canvasCursor.set(handle.cursor);
+          return;
+        }
+      }
+    }
+
+    // 2. Перевіряємо попадання у шар → перетягування + виділення
     const hit = this.hitTest(x, y);
     if (hit) {
+      this.selectedLayerId.set(hit.id);
       this.dragLayerId = hit.id;
       this.dragOffsetX = x - hit.x;
       this.dragOffsetY = y - hit.y;
       this.canvasCursor.set('grabbing');
+      this.render();
       return;
     }
 
-    // Клік на порожньому місці з вибраним емодзі → розмістити
+    // 3. Клік на порожньому місці — знімаємо виділення
+    this.selectedLayerId.set(null);
+
+    // 4. Розміщення емодзі
     if (this.selectedEmoji() && tool === 'move') {
       this.placeEmoji(x, y);
       return;
     }
 
-    // Інструмент виділення на порожньому місці → старт прямокутника
-    if (tool === 'select') {
-      this.isSelecting = true;
-      this.selStartX = x;
-      this.selStartY = y;
-      this.selEndX = x;
-      this.selEndY = y;
+    // 5. Олівець → старт вільного малювання
+    if (tool === 'pencil') {
+      this.isDrawing = true;
+      this.pencilPoints = [{ x, y }];
     }
   }
 
   onMouseMove(e: MouseEvent) {
     const { x, y } = this.toCanvasCoords(e);
 
-    if (this.dragLayerId) {
-      this.layers.update((list) =>
-        list.map((l) =>
-          l.id === this.dragLayerId
-            ? { ...l, x: x - this.dragOffsetX, y: y - this.dragOffsetY }
-            : l,
-        ),
+    // Resize
+    if (this.resizingLayerId && this.resizeOrigin) {
+      const dx = x - this.resizeStartX;
+      const dy = y - this.resizeStartY;
+      const o = this.resizeOrigin;
+      const MIN = 20;
+      let { x: lx, y: ly, width: lw, height: lh } = o;
+
+      const h = this.resizeHandle;
+      if (h.includes('e')) lw = Math.max(MIN, o.width  + dx);
+      if (h.includes('s')) lh = Math.max(MIN, o.height + dy);
+      if (h.includes('w')) { lw = Math.max(MIN, o.width  - dx); lx = o.x + o.width  - lw; }
+      if (h.includes('n')) { lh = Math.max(MIN, o.height - dy); ly = o.y + o.height - lh; }
+
+      this.layers.update(list =>
+        list.map(l => l.id === this.resizingLayerId
+          ? { ...l, x: lx, y: ly, width: lw, height: lh }
+          : l)
       );
       this.render();
       return;
     }
 
-    if (this.isSelecting) {
-      this.selEndX = x;
-      this.selEndY = y;
+    // Drag
+    if (this.dragLayerId) {
+      this.layers.update(list =>
+        list.map(l => l.id === this.dragLayerId
+          ? { ...l, x: x - this.dragOffsetX, y: y - this.dragOffsetY }
+          : l)
+      );
       this.render();
-      this.drawSelectionRect();
       return;
     }
 
-    // Hover cursor hint
+    // Pencil drawing
+    if (this.isDrawing) {
+      this.pencilPoints.push({ x, y });
+      this.render();
+      this.drawPencilPath();
+      return;
+    }
+
+    // Hover cursor
+    const selId = this.selectedLayerId();
+    if (selId) {
+      const selLayer = this.layers().find(l => l.id === selId);
+      if (selLayer?.type === 'fragment') {
+        const handle = this.hitHandle(x, y, selLayer);
+        if (handle) { this.canvasCursor.set(handle.cursor); return; }
+      }
+    }
     const hit = this.hitTest(x, y);
     if (hit) {
       this.canvasCursor.set('grab');
-    } else if (this.activeTool() === 'select') {
+    } else if (this.activeTool() === 'pencil') {
       this.canvasCursor.set('crosshair');
     } else if (this.selectedEmoji()) {
       this.canvasCursor.set('copy');
@@ -543,25 +639,46 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
     }
   }
 
-  onMouseUp(e: MouseEvent) {
+  onMouseUp(_e: MouseEvent) {
+    if (this.resizingLayerId) {
+      this.resizingLayerId = null;
+      this.resizeOrigin = null;
+      this.updateCursor();
+      return;
+    }
+
     if (this.dragLayerId) {
       this.dragLayerId = null;
       this.updateCursor();
       return;
     }
 
-    if (this.isSelecting) {
-      this.isSelecting = false;
-      const rx = Math.min(this.selStartX, this.selEndX);
-      const ry = Math.min(this.selStartY, this.selEndY);
-      const rw = Math.abs(this.selEndX - this.selStartX);
-      const rh = Math.abs(this.selEndY - this.selStartY);
-
-      if (rw > 8 && rh > 8) {
-        this.captureFragment(rx, ry, rw, rh);
+    if (this.isDrawing) {
+      this.isDrawing = false;
+      if (this.pencilPoints.length > 5) {
+        this.captureFreehandFragment();
+      } else {
+        this.render();
       }
-      this.render();
+      this.pencilPoints = [];
     }
+  }
+
+  // mouseleave — зупиняємо drag/resize, але НЕ завершуємо малювання олівцем
+  onMouseLeave(_e: MouseEvent) {
+    if (this.resizingLayerId) {
+      this.resizingLayerId = null;
+      this.resizeOrigin = null;
+      this.updateCursor();
+      return;
+    }
+    if (this.dragLayerId) {
+      this.dragLayerId = null;
+      this.updateCursor();
+      return;
+    }
+    // isDrawing навмисно не зупиняємо — малювання продовжиться
+    // коли мишка повернеться на canvas
   }
 
   // ── Emoji placement ──
@@ -578,23 +695,49 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.render();
   }
 
-  // ── Fragment capture ──
-  private captureFragment(x: number, y: number, w: number, h: number) {
-    // Render photo + existing layers flat first (without selection rect)
+  // ── Freehand fragment capture ──
+  private captureFreehandFragment() {
+    const pts = this.pencilPoints;
+
+    // Bounding box навколо намальованого контуру
+    const xs = pts.map(p => p.x);
+    const ys = pts.map(p => p.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    const w = maxX - minX;
+    const h = maxY - minY;
+    if (w < 8 || h < 8) return;
+
+    // Плоский рендер поточного стану (без контуру олівця)
     this.render();
     const srcCanvas = this.canvasRef.nativeElement;
 
+    // Offscreen canvas розміром bounding box
     const off = document.createElement('canvas');
     off.width = w;
     off.height = h;
-    off.getContext('2d')!.drawImage(srcCanvas, x, y, w, h, 0, 0, w, h);
+    const offCtx = off.getContext('2d')!;
+
+    // Clip за вільним контуром (зсунутим до координат offscreen)
+    offCtx.beginPath();
+    offCtx.moveTo(pts[0].x - minX, pts[0].y - minY);
+    for (let i = 1; i < pts.length; i++) {
+      offCtx.lineTo(pts[i].x - minX, pts[i].y - minY);
+    }
+    offCtx.closePath();
+    offCtx.clip();
+
+    // Малюємо фото+шари з основного canvas, обрізане контуром
+    offCtx.drawImage(srcCanvas, -minX, -minY);
 
     const layer: FragmentLayer = {
       id: crypto.randomUUID(),
       type: 'fragment',
       offscreen: off,
-      x: x + 20,
-      y: y + 20,
+      x: minX + 20,
+      y: minY + 20,
       width: w,
       height: h,
     };
@@ -612,15 +755,34 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Background photo
     this.ctx.drawImage(this.photo, 0, 0, canvas.width, canvas.height);
 
+    const selId = this.selectedLayerId();
+
     // Layers
     for (const layer of this.layers()) {
       if (layer.type === 'fragment') {
         this.ctx.drawImage(layer.offscreen, layer.x, layer.y, layer.width, layer.height);
-        // Border
-        this.ctx.strokeStyle = 'rgba(124,58,237,0.5)';
-        this.ctx.lineWidth = 1.5;
-        this.ctx.setLineDash([]);
+
+        const isSelected = layer.id === selId;
+        // Рамка: яскравіша якщо виділено
+        this.ctx.strokeStyle = isSelected ? 'rgba(167,139,250,0.9)' : 'rgba(124,58,237,0.45)';
+        this.ctx.lineWidth = isSelected ? 2 : 1.5;
+        this.ctx.setLineDash(isSelected ? [6, 3] : []);
         this.ctx.strokeRect(layer.x, layer.y, layer.width, layer.height);
+        this.ctx.setLineDash([]);
+
+        // Маркери resize — тільки для виділеного
+        if (isSelected) {
+          const hs = this.handleSize() / 2;
+          this.ctx.fillStyle = '#fff';
+          this.ctx.strokeStyle = 'rgba(124,58,237,0.9)';
+          this.ctx.lineWidth = 1.5;
+          for (const handle of this.getHandles(layer)) {
+            this.ctx.beginPath();
+            this.ctx.rect(handle.cx - hs, handle.cy - hs, hs * 2, hs * 2);
+            this.ctx.fill();
+            this.ctx.stroke();
+          }
+        }
       } else {
         this.ctx.font = `${layer.size}px serif`;
         this.ctx.textBaseline = 'top';
@@ -629,19 +791,36 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
     }
   }
 
-  private drawSelectionRect() {
-    const rx = Math.min(this.selStartX, this.selEndX);
-    const ry = Math.min(this.selStartY, this.selEndY);
-    const rw = Math.abs(this.selEndX - this.selStartX);
-    const rh = Math.abs(this.selEndY - this.selStartY);
+  // ── Малювання контуру олівця поверх canvas ──
+  private drawPencilPath() {
+    const pts = this.pencilPoints;
+    if (pts.length < 2) return;
 
     this.ctx.save();
-    this.ctx.strokeStyle = '#fff';
-    this.ctx.lineWidth = 1.5;
-    this.ctx.setLineDash([6, 3]);
-    this.ctx.strokeRect(rx, ry, rw, rh);
-    this.ctx.fillStyle = 'rgba(124,58,237,0.12)';
-    this.ctx.fillRect(rx, ry, rw, rh);
+
+    // Заливка
+    this.ctx.beginPath();
+    this.ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) {
+      this.ctx.lineTo(pts[i].x, pts[i].y);
+    }
+    this.ctx.closePath();
+    this.ctx.fillStyle = 'rgba(124,58,237,0.15)';
+    this.ctx.fill();
+
+    // Контурна лінія
+    this.ctx.beginPath();
+    this.ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) {
+      this.ctx.lineTo(pts[i].x, pts[i].y);
+    }
+    this.ctx.strokeStyle = 'rgba(167,139,250,0.9)';
+    this.ctx.lineWidth = 2;
+    this.ctx.lineCap = 'round';
+    this.ctx.lineJoin = 'round';
+    this.ctx.setLineDash([]);
+    this.ctx.stroke();
+
     this.ctx.restore();
   }
 
@@ -651,7 +830,8 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   saveToGallery() {
-    this.render(); // flatten
+    this.selectedLayerId.set(null); // знімаємо виділення — маркери не потрапляють на фото
+    this.render();
     const dataUrl = this.canvasRef.nativeElement.toDataURL('image/jpeg', 0.92);
     this.saved.emit(dataUrl);
     this.savedFlash.set(true);
