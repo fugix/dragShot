@@ -68,15 +68,24 @@ export class CloudGalleryService implements OnDestroy {
         .from(BUCKET)
         .getPublicUrl(storagePath);
 
-      // 4. Зберігаємо метадані в таблицю
-      const { error: insertErr } = await this.db.from(TABLE).insert({
-        user_id:      this.user.userId,
-        username:     this.user.username,
-        storage_path: storagePath,
-        public_url:   urlData.publicUrl,
-      });
+      // 4. Зберігаємо метадані в таблицю та повертаємо вставлений рядок
+      const { data: inserted, error: insertErr } = await this.db
+        .from(TABLE)
+        .insert({
+          user_id:      this.user.userId,
+          username:     this.user.username,
+          storage_path: storagePath,
+          public_url:   urlData.publicUrl,
+        })
+        .select()
+        .single();
 
       if (insertErr) throw new Error(insertErr.message);
+
+      // 5. Одразу оновлюємо локальний список (не чекаємо Realtime)
+      if (inserted) {
+        this.photos.update(list => [inserted as CloudPhoto, ...list]);
+      }
     } catch (e: any) {
       this.error.set('Помилка збереження: ' + (e?.message ?? e));
     } finally {
