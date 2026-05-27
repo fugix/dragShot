@@ -8,6 +8,7 @@ import {
   OnDestroy,
   Output,
   ViewChild,
+  computed,
   signal,
 } from '@angular/core';
 
@@ -35,9 +36,27 @@ interface FragmentLayer extends BaseLayer {
 type Layer = EmojiLayer | FragmentLayer;
 
 const EMOJIS = [
-  '😀','😂','🥰','😎','🤩','🥳','😜','🤔','😱','🤯',
-  '👍','👏','🙌','✌️','🤞','🫶','💪','🎉','🎊','🔥',
-  '💥','⭐','🌈','❤️','💜','💚','🍕','🎸','🚀','🌸',
+  // Обличчя
+  '😀','😁','😂','🤣','🥰','😍','🤩','😎','🥳','😜',
+  '😝','🤪','😱','🤯','🥺','😭','😤','🤬','😈','🤡',
+  '🥸','🤓','😏','😒','🙄','😬','🤐','🤫','🤭','😶',
+  // Жести та люди
+  '👍','👎','👏','🙌','🤝','🫶','✌️','🤞','🤙','💪',
+  '🫵','👆','👇','👈','👉','🙏','💅','🫠','🤷','🤦',
+  // Серця та символи
+  '❤️','🧡','💛','💚','💙','💜','🖤','🤍','💔','💕',
+  '💞','💓','💗','💖','💝','✨','⭐','🌟','💫','🔥',
+  '💥','🎉','🎊','🎈','🎁','🏆','🥇','🎯','💯','❗',
+  // Природа
+  '🌸','🌺','🌻','🌹','🌷','🍀','🌿','🌴','🌊','⛅',
+  '🌈','☀️','🌙','⭐','❄️','🌸','🦋','🐝','🦄','🐶',
+  '🐱','🦊','🐻','🐼','🐨','🦁','🐯','🐸','🦋','🐙',
+  // Їжа
+  '🍕','🍔','🍟','🌮','🍜','🍣','🍩','🎂','🍰','🧁',
+  '🍦','🍭','🍫','🍿','🥤','☕','🧃','🍷','🥂','🍺',
+  // Активності та предмети
+  '🚀','✈️','🚗','🏎️','🛸','⚽','🏀','🎸','🎮','🎲',
+  '📸','📱','💻','🎬','🎵','🎤','🎧','🕹️','🔮','💎',
 ];
 
 @Component({
@@ -85,14 +104,24 @@ const EMOJIS = [
         <!-- Emoji palette -->
         <div class="emoji-panel">
           <div class="panel-title">Емодзі</div>
+          <input
+            class="emoji-search"
+            type="text"
+            placeholder="Пошук…"
+            [value]="emojiSearch()"
+            (input)="onEmojiSearch($event)"
+          />
           <div class="emoji-grid">
-            @for (e of emojis; track e) {
+            @for (e of filteredEmojis(); track e) {
               <button
                 class="emoji-btn"
                 [class.selected]="selectedEmoji() === e"
                 (click)="selectEmoji(e)"
                 title="Додати {{ e }}"
               >{{ e }}</button>
+            }
+            @if (!filteredEmojis().length) {
+              <div class="emoji-empty">Нічого не знайдено</div>
             }
           </div>
           @if (selectedEmoji()) {
@@ -199,14 +228,14 @@ const EMOJIS = [
 
       /* ── Emoji panel ── */
       .emoji-panel {
-        width: 200px;
+        width: 220px;
         flex-shrink: 0;
         background: #13131d;
         border-right: 1px solid rgba(255,255,255,0.07);
         padding: 0.75rem;
         display: flex;
         flex-direction: column;
-        gap: 0.75rem;
+        gap: 0.6rem;
         overflow-y: auto;
       }
 
@@ -216,20 +245,47 @@ const EMOJIS = [
         text-transform: uppercase;
         letter-spacing: 0.08em;
         color: #64748b;
+        flex-shrink: 0;
       }
+
+      .emoji-search {
+        width: 100%;
+        padding: 0.35rem 0.6rem;
+        border-radius: 6px;
+        border: 1px solid rgba(255,255,255,0.1);
+        background: rgba(255,255,255,0.05);
+        color: #e2e8f0;
+        font-size: 0.8rem;
+        outline: none;
+        flex-shrink: 0;
+      }
+      .emoji-search::placeholder { color: #475569; }
+      .emoji-search:focus { border-color: rgba(124,58,237,0.5); }
 
       .emoji-grid {
         display: grid;
         grid-template-columns: repeat(5, 1fr);
-        gap: 4px;
+        gap: 3px;
+        overflow-y: auto;
+        flex: 1;
+        min-height: 0;
+        align-content: start;
+      }
+
+      .emoji-empty {
+        grid-column: 1 / -1;
+        text-align: center;
+        color: #475569;
+        font-size: 0.75rem;
+        padding: 1rem 0;
       }
 
       .emoji-btn {
         aspect-ratio: 1;
-        border-radius: 8px;
+        border-radius: 7px;
         border: 1px solid transparent;
         background: rgba(255,255,255,0.04);
-        font-size: 1.25rem;
+        font-size: 1.2rem;
         cursor: pointer;
         transition: all 0.12s;
         display: flex;
@@ -256,6 +312,7 @@ const EMOJIS = [
         padding: 0.5rem;
         border-radius: 6px;
         border: 1px solid rgba(255,255,255,0.06);
+        flex-shrink: 0;
       }
 
       /* ── Canvas ── */
@@ -321,6 +378,11 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   activeTool = signal<Tool>('move');
   selectedEmoji = signal('');
+  emojiSearch = signal('');
+  filteredEmojis = computed(() => {
+    const q = this.emojiSearch().trim();
+    return q ? EMOJIS.filter(e => e.includes(q)) : EMOJIS;
+  });
   layers = signal<Layer[]>([]);
   savedFlash = signal(false);
   canvasCursor = signal('default');
@@ -372,6 +434,10 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (this.selectedEmoji()) this.activeTool.set('move');
   }
 
+  onEmojiSearch(event: Event) {
+    this.emojiSearch.set((event.target as HTMLInputElement).value);
+  }
+
   private updateCursor() {
     const tool = this.activeTool();
     if (tool === 'select') {
@@ -400,8 +466,8 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
     const list = [...this.layers()].reverse();
     for (const layer of list) {
       if (layer.type === 'emoji') {
-        const half = layer.size / 2;
-        if (x >= layer.x - half && x <= layer.x + half && y >= layer.y - half && y <= layer.y + half) {
+        // Emoji малюється від (layer.x, layer.y) як top-left з розміром layer.size
+        if (x >= layer.x && x <= layer.x + layer.size && y >= layer.y && y <= layer.y + layer.size) {
           return layer;
         }
       } else {
@@ -417,13 +483,7 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
     const { x, y } = this.toCanvasCoords(e);
     const tool = this.activeTool();
 
-    // Placing emoji (highest priority)
-    if (this.selectedEmoji() && tool === 'move') {
-      this.placeEmoji(x, y);
-      return;
-    }
-
-    // Check if clicking an existing layer → drag it regardless of tool
+    // Спершу перевіряємо чи клікнули на існуючий шар → перетягування
     const hit = this.hitTest(x, y);
     if (hit) {
       this.dragLayerId = hit.id;
@@ -433,7 +493,13 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
       return;
     }
 
-    // Select tool on empty area → start selection rect
+    // Клік на порожньому місці з вибраним емодзі → розмістити
+    if (this.selectedEmoji() && tool === 'move') {
+      this.placeEmoji(x, y);
+      return;
+    }
+
+    // Інструмент виділення на порожньому місці → старт прямокутника
     if (tool === 'select') {
       this.isSelecting = true;
       this.selStartX = x;
