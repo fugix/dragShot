@@ -228,7 +228,7 @@ const EMOJIS = [
 
       /* ── Emoji panel ── */
       .emoji-panel {
-        width: 220px;
+        width: 340px;
         flex-shrink: 0;
         background: #13131d;
         border-right: 1px solid rgba(255,255,255,0.07);
@@ -236,7 +236,7 @@ const EMOJIS = [
         display: flex;
         flex-direction: column;
         gap: 0.6rem;
-        overflow-y: auto;
+        overflow: hidden;
       }
 
       .panel-title {
@@ -264,11 +264,8 @@ const EMOJIS = [
 
       .emoji-grid {
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
+        grid-template-columns: repeat(10, 1fr);
         gap: 3px;
-        overflow-y: auto;
-        flex: 1;
-        min-height: 0;
         align-content: start;
       }
 
@@ -282,16 +279,17 @@ const EMOJIS = [
 
       .emoji-btn {
         aspect-ratio: 1;
-        border-radius: 7px;
+        border-radius: 6px;
         border: 1px solid transparent;
         background: rgba(255,255,255,0.04);
-        font-size: 1.2rem;
+        font-size: 1.05rem;
         cursor: pointer;
         transition: all 0.12s;
         display: flex;
         align-items: center;
         justify-content: center;
         line-height: 1;
+        padding: 0;
       }
 
       .emoji-btn:hover {
