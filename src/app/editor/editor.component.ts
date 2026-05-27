@@ -305,8 +305,8 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
     return Math.max(10, 10 * scale); // ~10px на екрані
   }
 
-  // ── 8 маркерів для FragmentLayer ──
-  private getHandles(l: FragmentLayer): { name: string; cx: number; cy: number; cursor: string }[] {
+  // ── 8 маркерів для будь-якого прямокутника ──
+  private getHandles(l: { x: number; y: number; width: number; height: number }): { name: string; cx: number; cy: number; cursor: string }[] {
     const { x, y, width: w, height: h } = l;
     return [
       { name: 'nw', cx: x,         cy: y,         cursor: 'nwse-resize' },
@@ -320,10 +320,18 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
     ];
   }
 
-  // ── Перевірка попадання у маркер ──
-  private hitHandle(x: number, y: number, layer: FragmentLayer) {
+  // ── Отримати bounds шару (уніфіковано для emoji та fragment) ──
+  private layerBounds(layer: Layer): { x: number; y: number; width: number; height: number } {
+    if (layer.type === 'emoji') {
+      return { x: layer.x, y: layer.y, width: layer.size, height: layer.size };
+    }
+    return { x: layer.x, y: layer.y, width: layer.width, height: layer.height };
+  }
+
+  // ── Перевірка попадання у маркер (працює для будь-якого шару) ──
+  private hitHandle(x: number, y: number, layer: Layer) {
     const hs = this.handleSize() / 2;
-    return this.getHandles(layer).find(
+    return this.getHandles(this.layerBounds(layer)).find(
       h => Math.abs(x - h.cx) <= hs && Math.abs(y - h.cy) <= hs
     ) ?? null;
   }
@@ -354,18 +362,18 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
     const { x, y } = this.toCanvasCoords(clientX, clientY);
     const tool = this.activeTool();
 
-    // 1. Перевіряємо маркери resize виділеного фрагмента
+    // 1. Перевіряємо маркери resize виділеного шару (fragment або emoji)
     const selId = this.selectedLayerId();
     if (selId) {
       const selLayer = this.layers().find(l => l.id === selId);
-      if (selLayer?.type === 'fragment') {
+      if (selLayer) {
         const handle = this.hitHandle(x, y, selLayer);
         if (handle) {
           this.resizingLayerId = selId;
           this.resizeHandle = handle.name;
           this.resizeStartX = x;
           this.resizeStartY = y;
-          this.resizeOrigin = { x: selLayer.x, y: selLayer.y, width: selLayer.width, height: selLayer.height };
+          this.resizeOrigin = this.layerBounds(selLayer);
           this.canvasCursor.set(handle.cursor);
           return;
         }
@@ -409,19 +417,48 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
       const dy = y - this.resizeStartY;
       const o = this.resizeOrigin;
       const MIN = 20;
-      let { x: lx, y: ly, width: lw, height: lh } = o;
-
       const h = this.resizeHandle;
-      if (h.includes('e')) lw = Math.max(MIN, o.width  + dx);
-      if (h.includes('s')) lh = Math.max(MIN, o.height + dy);
-      if (h.includes('w')) { lw = Math.max(MIN, o.width  - dx); lx = o.x + o.width  - lw; }
-      if (h.includes('n')) { lh = Math.max(MIN, o.height - dy); ly = o.y + o.height - lh; }
 
-      this.layers.update(list =>
-        list.map(l => l.id === this.resizingLayerId
-          ? { ...l, x: lx, y: ly, width: lw, height: lh }
-          : l)
-      );
+      const resizingLayer = this.layers().find(l => l.id === this.resizingLayerId);
+
+      if (resizingLayer?.type === 'emoji') {
+        // Пропорційне масштабування emoji від центру
+        const cx = o.x + o.width / 2;
+        const cy = o.y + o.height / 2;
+        let delta: number;
+        if (h.length === 2) {
+          // Кутовий маркер: беремо максимальний delta по обох осях
+          const dx2 = h.includes('e') ? dx : -dx;
+          const dy2 = h.includes('s') ? dy : -dy;
+          delta = Math.max(dx2, dy2);
+        } else {
+          // Боковий маркер: масштабуємо по одній осі
+          if (h === 'e') delta = dx;
+          else if (h === 'w') delta = -dx;
+          else if (h === 's') delta = dy;
+          else delta = -dy; // 'n'
+        }
+        const newSize = Math.max(MIN, o.width + delta);
+        const half = newSize / 2;
+        this.layers.update(list =>
+          list.map(l => l.id === this.resizingLayerId
+            ? { ...l, x: cx - half, y: cy - half, size: newSize }
+            : l)
+        );
+      } else {
+        // Resize фрагмента — незалежне масштабування по осях
+        let { x: lx, y: ly, width: lw, height: lh } = o;
+        if (h.includes('e')) lw = Math.max(MIN, o.width  + dx);
+        if (h.includes('s')) lh = Math.max(MIN, o.height + dy);
+        if (h.includes('w')) { lw = Math.max(MIN, o.width  - dx); lx = o.x + o.width  - lw; }
+        if (h.includes('n')) { lh = Math.max(MIN, o.height - dy); ly = o.y + o.height - lh; }
+        this.layers.update(list =>
+          list.map(l => l.id === this.resizingLayerId
+            ? { ...l, x: lx, y: ly, width: lw, height: lh }
+            : l)
+        );
+      }
+
       this.render();
       return;
     }
@@ -445,11 +482,11 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
       return;
     }
 
-    // Hover cursor
+    // Hover cursor — маркери resize для виділеного шару (emoji або fragment)
     const selId = this.selectedLayerId();
     if (selId) {
       const selLayer = this.layers().find(l => l.id === selId);
-      if (selLayer?.type === 'fragment') {
+      if (selLayer) {
         const handle = this.hitHandle(x, y, selLayer);
         if (handle) { this.canvasCursor.set(handle.cursor); return; }
       }
@@ -603,9 +640,30 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
           }
         }
       } else {
+        const isSelected = layer.id === selId;
         this.ctx.font = `${layer.size}px serif`;
         this.ctx.textBaseline = 'top';
         this.ctx.fillText(layer.emoji, layer.x, layer.y);
+
+        // Рамка виділення + маркери resize для виділеного emoji
+        if (isSelected) {
+          this.ctx.strokeStyle = 'rgba(167,139,250,0.9)';
+          this.ctx.lineWidth = 2;
+          this.ctx.setLineDash([6, 3]);
+          this.ctx.strokeRect(layer.x, layer.y, layer.size, layer.size);
+          this.ctx.setLineDash([]);
+
+          const hs = this.handleSize() / 2;
+          this.ctx.fillStyle = '#fff';
+          this.ctx.strokeStyle = 'rgba(124,58,237,0.9)';
+          this.ctx.lineWidth = 1.5;
+          for (const handle of this.getHandles({ x: layer.x, y: layer.y, width: layer.size, height: layer.size })) {
+            this.ctx.beginPath();
+            this.ctx.rect(handle.cx - hs, handle.cy - hs, hs * 2, hs * 2);
+            this.ctx.fill();
+            this.ctx.stroke();
+          }
+        }
       }
     }
   }
