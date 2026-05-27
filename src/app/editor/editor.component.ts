@@ -94,7 +94,7 @@ const EMOJIS = [
           <button class="tool-btn save" (click)="saveToGallery()" title="Зберегти">
             💾 Зберегти
           </button>
-          <button class="tool-btn secondary" (click)="back.emit()" title="Назад">
+          <button class="tool-btn secondary back-btn" (click)="back.emit()" title="Назад">
             ← Назад
           </button>
         </div>
@@ -440,6 +440,29 @@ const EMOJIS = [
           display: none;
         }
 
+        .back-btn {
+          display: none;
+        }
+
+        .toolbar {
+          flex-wrap: nowrap;
+          justify-content: space-between;
+          padding: 0.4rem 0.6rem;
+        }
+
+        .tool-sep {
+          display: none;
+        }
+
+        .tool-group {
+          gap: 0.3rem;
+        }
+
+        .tool-btn {
+          padding: 0.4rem 0.65rem;
+          font-size: 0.78rem;
+        }
+
         .panel-hint {
           display: none; /* не показуємо підказки на мобільному */
         }
@@ -774,13 +797,15 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   // ── Emoji placement ──
   private placeEmoji(x: number, y: number) {
+    const size = window.innerWidth <= 640 ? 96 : 48;
+    const half = size / 2;
     const layer: EmojiLayer = {
       id: crypto.randomUUID(),
       type: 'emoji',
       emoji: this.selectedEmoji(),
-      x: x - 24,
-      y: y - 24,
-      size: 48,
+      x: x - half,
+      y: y - half,
+      size,
     };
     this.layers.update((l) => [...l, layer]);
     this.render();
