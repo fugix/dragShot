@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build",
+  "buildCommand": "node scripts/generate-env.mjs && npm run build",
   "outputDirectory": "dist/DragShot/browser",
   "framework": null,
   "rewrites": [

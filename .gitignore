@@ -46,3 +46,7 @@ Thumbs.db
 # Playwright MCP temp files
 .playwright-mcp/
 .vercel
+
+# Environment files з credentials (генеруються з env vars або заповнюються локально)
+src/environments/environment.ts
+src/environments/environment.prod.ts
