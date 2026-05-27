@@ -73,7 +73,7 @@ const EMOJIS = [
             (click)="setTool('move')"
             title="Переміщення (M)"
           >
-            <span>✋</span> Рухати
+            <span class="btn-icon">✋</span> Рухати
           </button>
           <button
             class="tool-btn"
@@ -81,18 +81,18 @@ const EMOJIS = [
             (click)="setTool('pencil')"
             title="Виділення олівцем"
           >
-            <span>✏️</span> Олівець
+            <span class="btn-icon">✏️</span> Олівець
           </button>
         </div>
         <div class="tool-sep"></div>
         <div class="tool-group">
           @if (layers().length) {
             <button class="tool-btn danger" (click)="clearLayers()" title="Очистити шари">
-              🗑 Очистити
+              <span class="btn-icon">🗑</span> Очистити
             </button>
           }
           <button class="tool-btn save" (click)="saveToGallery()" title="Зберегти">
-            💾 Зберегти
+            <span class="btn-icon">💾</span> Зберегти
           </button>
           <button class="tool-btn secondary back-btn" (click)="back.emit()" title="Назад">
             ← Назад
@@ -441,6 +441,10 @@ const EMOJIS = [
         }
 
         .back-btn {
+          display: none;
+        }
+
+        .btn-icon {
           display: none;
         }
 
