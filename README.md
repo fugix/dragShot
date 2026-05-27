@@ -1,59 +1,94 @@
-# DragShot
+# 📸 DragShot
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.12.
+> Натхненний вбудованою камерою Tesla — створений з любов'ю для моєї доньки 🚗💜
 
-## Development server
+**DragShot** — веб-застосунок для зйомки фото через веб-камеру з інтерактивним редактором: накладання емодзі, перетягування фрагментів зображення та збереження у галерею.
 
-To start a local development server, run:
+🌐 **Live:** [dragshot.vercel.app](https://dragshot.vercel.app)
+
+---
+
+## 💡 Ідея
+
+У автомобілях **Tesla** є вбудований розважальний застосунок із камерою, де можна робити фото, малювати поверх них та додавати стікери — моїй доньці він дуже подобається. Я вирішив створити схожий застосунок, доступний прямо у браузері, щоб вона могла користуватися ним будь-де і будь-коли.
+
+---
+
+## ✨ Можливості
+
+### 📷 Камера
+- Захоплення фото з веб-камери одним кліком
+- Підтримка всіх підключених відеопристроїв
+- Миттєвий перехід до редактора після зйомки
+
+### 🎨 Редактор
+- **Емодзі-стікери** — вибирай з палітри та розміщуй поверх фото
+- **Перетягування** — переміщуй будь-який елемент по полотну
+- **Виділення фрагментів** — обери прямокутну область і перетягни її як окремий шар
+- **Багатошаровий canvas** — усі елементи незалежні та редаговані
+- **Збереження** — фіналізація фото з усіма накладками одним кліком
+
+### 🖼 Галерея
+- Перегляд усіх збережених фото
+- Інформація про дату збереження
+- Завантаження фото на пристрій
+- Видалення непотрібних знімків
+- Дані зберігаються у `localStorage` між сесіями
+
+---
+
+## 🛠 Технологічний стек
+
+| Технологія | Призначення |
+|---|---|
+| **Angular 21** | Фреймворк, standalone-компоненти, Signals API |
+| **TypeScript 5.9** | Типізація |
+| **HTML5 Canvas API** | Рендеринг редактора, захоплення фрагментів |
+| **MediaDevices API** | Доступ до веб-камери |
+| **localStorage** | Збереження фото між сесіями |
+| **Vitest** | Юніт-тести |
+
+---
+
+## 🚀 Запуск локально
 
 ```bash
-ng serve
+# Встановити залежності
+npm install
+
+# Запустити dev-сервер
+npm start
+# → http://localhost:4200
+
+# Зібрати production-збірку
+npm run build
+
+# Запустити тести
+npm test
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+> ⚠️ Для роботи камери потрібен браузер із підтримкою `getUserMedia` та дозвіл на використання камери (тільки `localhost` або `HTTPS`).
 
-## Code scaffolding
+---
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+## 📁 Структура проєкту
 
-```bash
-ng generate component component-name
+```
+src/app/
+├── app.ts              # Кореневий компонент, навігація між екранами
+├── camera/             # Захоплення фото з веб-камери
+├── editor/             # Canvas-редактор з емодзі та фрагментами
+├── gallery/            # Галерея збережених фото
+└── services/
+    └── storage.service.ts  # CRUD для localStorage
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+---
 
-```bash
-ng generate --help
-```
+## 📜 Ліцензія
 
-## Building
+MIT — робіть що хочете 🙂
 
-To build the project run:
+---
 
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+<p align="center">Зроблено з ❤️ для моєї доньки, якій дуже подобається Tesla 🚗⚡</p>
