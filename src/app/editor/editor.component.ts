@@ -437,7 +437,7 @@ const EMOJIS = [
         }
 
         .emoji-search {
-          font-size: 0.85rem;
+          display: none;
         }
 
         .panel-hint {
