@@ -11,14 +11,14 @@
         [class.active]="view() === 'camera' || view() === 'editor'"
         (click)="goToCamera()"
       >
-        📷 Камера
+        <span class="nav-icon">📷</span> Камера
       </button>
       <button
         class="nav-btn gallery-nav"
         [class.active]="view() === 'gallery'"
         (click)="goToGallery()"
       >
-        🖼 Галерея
+        <span class="nav-icon">🖼</span> Галерея
         @if (photos().length) {
           <span class="badge">{{ photos().length }}</span>
         }

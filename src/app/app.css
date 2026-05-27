@@ -98,3 +98,9 @@
   padding: 2rem;
   overflow: auto;
 }
+
+@media (max-width: 640px) {
+  .nav-icon {
+    display: none;
+  }
+}
