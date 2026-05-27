@@ -152,6 +152,9 @@ const EMOJIS = [
             (mousemove)="onMouseMove($event)"
             (mouseup)="onMouseUp($event)"
             (mouseleave)="onMouseLeave($event)"
+            (touchstart)="onTouchStart($event)"
+            (touchmove)="onTouchMove($event)"
+            (touchend)="onTouchEnd($event)"
           ></canvas>
         </div>
       </div>
@@ -368,6 +371,7 @@ const EMOJIS = [
         box-shadow: 0 8px 48px rgba(0,0,0,0.6);
         user-select: none;
         -webkit-user-select: none;
+        touch-action: none; /* забороняємо браузеру перехоплювати touch для скролу */
       }
 
       /* ── Toast ── */
@@ -539,15 +543,33 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   // ── Canvas coordinate helper ──
-  private toCanvasCoords(e: MouseEvent): { x: number; y: number } {
+  private toCanvasCoords(clientX: number, clientY: number): { x: number; y: number } {
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
     const canvas = this.canvasRef.nativeElement;
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
     return {
-      x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top) * scaleY,
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY,
     };
+  }
+
+  // ── Touch event handlers ──
+  onTouchStart(e: TouchEvent) {
+    e.preventDefault();
+    const t = e.touches[0];
+    if (t) this.handlePointerDown(t.clientX, t.clientY);
+  }
+
+  onTouchMove(e: TouchEvent) {
+    e.preventDefault();
+    const t = e.touches[0];
+    if (t) this.handlePointerMove(t.clientX, t.clientY);
+  }
+
+  onTouchEnd(e: TouchEvent) {
+    e.preventDefault();
+    this.handlePointerUp();
   }
 
   // ── Розмір маркера в координатах canvas (залежить від масштабу) ──
@@ -598,8 +620,12 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
     return null;
   }
 
-  onMouseDown(e: MouseEvent) {
-    const { x, y } = this.toCanvasCoords(e);
+  onMouseDown(e: MouseEvent) { this.handlePointerDown(e.clientX, e.clientY); }
+  onMouseMove(e: MouseEvent) { this.handlePointerMove(e.clientX, e.clientY); }
+  onMouseUp(_e: MouseEvent)  { this.handlePointerUp(); }
+
+  private handlePointerDown(clientX: number, clientY: number) {
+    const { x, y } = this.toCanvasCoords(clientX, clientY);
     const tool = this.activeTool();
 
     // 1. Перевіряємо маркери resize виділеного фрагмента
@@ -648,8 +674,8 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
     }
   }
 
-  onMouseMove(e: MouseEvent) {
-    const { x, y } = this.toCanvasCoords(e);
+  private handlePointerMove(clientX: number, clientY: number) {
+    const { x, y } = this.toCanvasCoords(clientX, clientY);
 
     // Resize
     if (this.resizingLayerId && this.resizeOrigin) {
@@ -714,7 +740,7 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
     }
   }
 
-  onMouseUp(_e: MouseEvent) {
+  private handlePointerUp() {
     if (this.resizingLayerId) {
       this.resizingLayerId = null;
       this.resizeOrigin = null;
@@ -741,19 +767,9 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   // mouseleave — зупиняємо drag/resize, але НЕ завершуємо малювання олівцем
   onMouseLeave(_e: MouseEvent) {
-    if (this.resizingLayerId) {
-      this.resizingLayerId = null;
-      this.resizeOrigin = null;
-      this.updateCursor();
-      return;
-    }
-    if (this.dragLayerId) {
-      this.dragLayerId = null;
-      this.updateCursor();
-      return;
-    }
-    // isDrawing навмисно не зупиняємо — малювання продовжиться
-    // коли мишка повернеться на canvas
+    if (this.resizingLayerId) { this.resizingLayerId = null; this.resizeOrigin = null; this.updateCursor(); return; }
+    if (this.dragLayerId)     { this.dragLayerId = null; this.updateCursor(); return; }
+    // isDrawing навмисно не зупиняємо — продовжиться коли мишка повернеться
   }
 
   // ── Emoji placement ──
