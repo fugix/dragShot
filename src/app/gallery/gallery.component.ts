@@ -14,21 +14,21 @@ import { SavedPhoto } from '../services/storage.service';
       @if (!photos.length) {
         <div class="empty-state">
           <span class="empty-icon">🖼️</span>
-          <p>Нет сохранённых фото</p>
-          <small>Сделайте фото и сохраните его из редактора</small>
+          <p>Немає збережених фото</p>
+          <small>Зробіть фото та збережіть його з редактора</small>
         </div>
       } @else {
         <div class="grid">
           @for (photo of photos; track photo.id) {
             <div class="photo-card">
-              <img [src]="photo.dataUrl" [alt]="'Фото ' + photo.id" loading="lazy" />
+              <img [src]="photo.dataUrl" [alt]="'Знімок ' + photo.id" loading="lazy" />
               <div class="card-overlay">
                 <span class="card-date">{{ formatDate(photo.savedAt) }}</span>
                 <div class="card-actions">
-                  <button class="card-btn" (click)="downloadPhoto(photo)" title="Скачать">
+                  <button class="card-btn" (click)="downloadPhoto(photo)" title="Завантажити">
                     ⬇️
                   </button>
-                  <button class="card-btn danger" (click)="deletePhoto.emit(photo.id)" title="Удалить">
+                  <button class="card-btn danger" (click)="deletePhoto.emit(photo.id)" title="Видалити">
                     🗑️
                   </button>
                 </div>
@@ -168,7 +168,7 @@ export class GalleryComponent {
   @Output() deletePhoto = new EventEmitter<string>();
 
   formatDate(ts: number): string {
-    return new Date(ts).toLocaleString('ru-RU', {
+    return new Date(ts).toLocaleString('uk-UA', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',

@@ -52,28 +52,28 @@ const EMOJIS = [
             class="tool-btn"
             [class.active]="activeTool() === 'move'"
             (click)="setTool('move')"
-            title="Перемещение (M)"
+            title="Переміщення (M)"
           >
-            <span>✋</span> Двигать
+            <span>✋</span> Рухати
           </button>
           <button
             class="tool-btn"
             [class.active]="activeTool() === 'select'"
             (click)="setTool('select')"
-            title="Выделение (S)"
+            title="Виділення (S)"
           >
-            <span>⬚</span> Выделить
+            <span>⬚</span> Виділити
           </button>
         </div>
         <div class="tool-sep"></div>
         <div class="tool-group">
           @if (layers().length) {
-            <button class="tool-btn danger" (click)="clearLayers()" title="Очистить слои">
-              🗑 Очистить
+            <button class="tool-btn danger" (click)="clearLayers()" title="Очистити шари">
+              🗑 Очистити
             </button>
           }
-          <button class="tool-btn save" (click)="saveToGallery()" title="Сохранить">
-            💾 Сохранить
+          <button class="tool-btn save" (click)="saveToGallery()" title="Зберегти">
+            💾 Зберегти
           </button>
           <button class="tool-btn secondary" (click)="back.emit()" title="Назад">
             ← Назад
@@ -84,20 +84,20 @@ const EMOJIS = [
       <div class="workspace">
         <!-- Emoji palette -->
         <div class="emoji-panel">
-          <div class="panel-title">Эмодзи</div>
+          <div class="panel-title">Емодзі</div>
           <div class="emoji-grid">
             @for (e of emojis; track e) {
               <button
                 class="emoji-btn"
                 [class.selected]="selectedEmoji() === e"
                 (click)="selectEmoji(e)"
-                title="Добавить {{ e }}"
+                title="Додати {{ e }}"
               >{{ e }}</button>
             }
           </div>
           @if (selectedEmoji()) {
             <div class="panel-hint">
-              Кликните на фото чтобы разместить {{ selectedEmoji() }}
+              Клацніть на фото, щоб розмістити {{ selectedEmoji() }}
             </div>
           }
         </div>
@@ -116,7 +116,7 @@ const EMOJIS = [
       </div>
 
       @if (savedFlash()) {
-        <div class="save-toast">✅ Фото сохранено в галерею!</div>
+        <div class="save-toast">✅ Фото збережено до галереї!</div>
       }
     </div>
   `,

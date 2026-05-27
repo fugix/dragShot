@@ -37,7 +37,7 @@ import {
         @if (!cameraStarted() && !error()) {
           <div class="camera-loading">
             <div class="spinner"></div>
-            <p>Запрос камеры…</p>
+            <p>Ініціалізація камери…</p>
           </div>
         }
       </div>
@@ -50,16 +50,16 @@ import {
             (click)="capturePhoto()"
           >
             <span class="btn-icon">📷</span>
-            Снять фото
+            Зробити фото
           </button>
         } @else {
           <button class="btn btn-secondary" (click)="retake()">
             <span class="btn-icon">🔄</span>
-            Переснять
+            Перезняти
           </button>
           <button class="btn btn-primary" (click)="usePhoto()">
             <span class="btn-icon">✓</span>
-            Редактировать
+            Редагувати
           </button>
         }
       </div>
@@ -209,7 +209,7 @@ export class CameraComponent implements AfterViewInit, OnDestroy {
       await this.videoEl.nativeElement.play();
       this.cameraStarted.set(true);
     } catch (e: any) {
-      this.error.set('Нет доступа к камере: ' + (e?.message ?? e));
+      this.error.set('Немає доступу до камери: ' + (e?.message ?? e));
     }
   }
 
