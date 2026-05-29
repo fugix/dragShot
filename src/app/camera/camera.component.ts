@@ -28,6 +28,17 @@ import {
           [style.display]="photoTaken() ? 'block' : 'none'"
         ></canvas>
 
+        @if (cameras().length > 1 && !photoTaken()) {
+          <button
+            class="btn-switch-camera"
+            [disabled]="!cameraStarted()"
+            (click)="switchCamera()"
+            title="Перемкнути камеру"
+          >
+            🔄
+          </button>
+        }
+
         @if (error()) {
           <div class="camera-error">
             <span class="error-icon">📷</span>
@@ -75,24 +86,43 @@ export class CameraComponent implements AfterViewInit, OnDestroy {
   photoTaken = signal(false);
   cameraStarted = signal(false);
   error = signal('');
+  cameras = signal<MediaDeviceInfo[]>([]);
 
   private stream: MediaStream | null = null;
+  private currentCameraIndex = 0;
 
   async ngAfterViewInit() {
     await this.startCamera();
   }
 
-  async startCamera() {
+  async startCamera(deviceId?: string) {
     try {
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } },
-      });
+      const videoConstraints: MediaTrackConstraints = deviceId
+        ? { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 960 } }
+        : { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } };
+
+      this.stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints });
       this.videoEl.nativeElement.srcObject = this.stream;
       await this.videoEl.nativeElement.play();
       this.cameraStarted.set(true);
+
+      if (this.cameras().length === 0) {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        this.cameras.set(devices.filter((d) => d.kind === 'videoinput'));
+      }
     } catch (e: any) {
       this.error.set('Немає доступу до камери: ' + (e?.message ?? e));
     }
+  }
+
+  async switchCamera() {
+    const cams = this.cameras();
+    if (cams.length <= 1) return;
+    this.currentCameraIndex = (this.currentCameraIndex + 1) % cams.length;
+    this.stream?.getTracks().forEach((t) => t.stop());
+    this.stream = null;
+    this.cameraStarted.set(false);
+    await this.startCamera(cams[this.currentCameraIndex].deviceId);
   }
 
   capturePhoto() {

@@ -58,6 +58,36 @@ canvas {
   }
 }
 
+.btn-switch-camera {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(6px);
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, transform 0.2s;
+  z-index: 10;
+  color: #fff;
+}
+
+.btn-switch-camera:not(:disabled):hover {
+  background: rgba(124, 58, 237, 0.55);
+  transform: scale(1.1);
+}
+
+.btn-switch-camera:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 .camera-controls {
   display: flex;
   gap: 1rem;
