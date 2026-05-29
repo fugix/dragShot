@@ -390,6 +390,14 @@ canvas {
     padding-bottom: 4px;
   }
 
+  .fragments-empty {
+    grid-column: unset;
+    grid-row: 1 / -1;
+    white-space: nowrap;
+    padding: 0.3rem 0.5rem;
+    align-self: center;
+  }
+
   .emoji-search {
     display: none;
   }
