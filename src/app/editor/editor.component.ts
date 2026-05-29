@@ -95,11 +95,6 @@ const EMOJIS = [
               <span class="btn-icon">✂️</span> Видалити
             </button>
           }
-          @if (layers().length) {
-            <button class="tool-btn danger" (click)="clearLayers()" title="Очистити шари">
-              <span class="btn-icon">🗑</span> Очистити
-            </button>
-          }
           <button
             class="tool-btn save"
             [class.saving]="saving"
