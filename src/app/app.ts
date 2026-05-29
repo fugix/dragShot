@@ -22,12 +22,17 @@ export class App implements OnInit {
   view            = signal<View>('camera');
   currentPhoto    = signal('');
   updateAvailable = signal(false);
+  showSplash      = signal(true);
+  splashFading    = signal(false);
 
   // Проксі до сигналів сервісу
   get photos()    { return this.cloudGallery.photos; }
   get uploading() { return this.cloudGallery.uploading; }
 
   async ngOnInit() {
+    setTimeout(() => this.splashFading.set(true), 1400);
+    setTimeout(() => this.showSplash.set(false), 1800);
+
     await this.cloudGallery.loadPhotos();
     this.cloudGallery.subscribeRealtime();
     this.watchForUpdates();
@@ -43,6 +48,10 @@ export class App implements OnInit {
 
   activateUpdate() {
     this.swUpdate.activateUpdate().then(() => location.reload());
+  }
+
+  dismissUpdate() {
+    this.updateAvailable.set(false);
   }
 
   onPhotoCaptured(dataUrl: string) {

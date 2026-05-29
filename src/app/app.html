@@ -1,9 +1,19 @@
+@if (showSplash()) {
+  <div class="splash" [class.fading]="splashFading()">
+    <div class="splash-content">
+      <div class="splash-icon">📸</div>
+      <div class="splash-brand">DragShot</div>
+      <div class="splash-ver">v2</div>
+    </div>
+  </div>
+}
+
 <div class="app-shell">
   <!-- Header -->
   <header class="app-header">
     <div class="brand">
       <span class="brand-icon">📸</span>
-      <span class="brand-name">DragShot</span><span class="brand-ver">v2</span>
+      <span class="brand-name">DragShot</span>
     </div>
     <nav class="app-nav">
       <button
