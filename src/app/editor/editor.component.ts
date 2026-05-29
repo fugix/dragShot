@@ -10,8 +10,10 @@ import {
   Output,
   ViewChild,
   computed,
+  inject,
   signal,
 } from '@angular/core';
+import { StorageService, SavedFragment } from '../services/storage.service';
 
 export type Tool = 'move' | 'pencil';
 
@@ -118,41 +120,76 @@ const EMOJIS = [
         <!-- Emoji palette -->
         <div class="emoji-panel" [class.collapsed]="!emojiPanelOpen()">
           <div class="panel-header">
-            <span class="panel-title">Емодзі</span>
+            <div class="panel-tabs">
+              <button class="panel-tab" [class.active]="activePanel() === 'emojis'" (click)="activePanel.set('emojis')">Емодзі</button>
+              <button class="panel-tab" [class.active]="activePanel() === 'fragments'" (click)="activePanel.set('fragments')">
+                Фрагменти@if (savedFragments().length) {<span class="tab-badge">{{ savedFragments().length }}</span>}
+              </button>
+            </div>
             <button class="panel-toggle" (click)="emojiPanelOpen.set(!emojiPanelOpen())">
               {{ emojiPanelOpen() ? '▾' : '▸' }}
             </button>
           </div>
           @if (emojiPanelOpen()) {
-            <input
-              class="emoji-search"
-              type="text"
-              placeholder="Пошук…"
-              [value]="emojiSearch()"
-              (input)="onEmojiSearch($event)"
-            />
-            <div class="emoji-grid">
-              @for (e of filteredEmojis(); track e) {
-                <button
-                  class="emoji-btn"
-                  [class.selected]="selectedEmoji() === e"
-                  (click)="selectEmoji(e)"
-                  title="Додати {{ e }}"
-                >{{ e }}</button>
-              }
-              @if (!filteredEmojis().length) {
-                <div class="emoji-empty">Нічого не знайдено</div>
-              }
-            </div>
-            @if (selectedEmoji()) {
-              <div class="panel-hint">
-                Клацніть на фото, щоб розмістити {{ selectedEmoji() }}
+            @if (activePanel() === 'emojis') {
+              <input
+                class="emoji-search"
+                type="text"
+                placeholder="Пошук…"
+                [value]="emojiSearch()"
+                (input)="onEmojiSearch($event)"
+              />
+              <div class="emoji-grid">
+                @for (e of filteredEmojis(); track e) {
+                  <button
+                    class="emoji-btn"
+                    [class.selected]="selectedEmoji() === e"
+                    (click)="selectEmoji(e)"
+                    title="Додати {{ e }}"
+                  >{{ e }}</button>
+                }
+                @if (!filteredEmojis().length) {
+                  <div class="emoji-empty">Нічого не знайдено</div>
+                }
               </div>
-            }
-            @if (activeTool() === 'pencil') {
-              <div class="panel-hint pencil-hint">
-                ✏️ Намалюйте контур — виділена область стане окремим шаром
+              @if (selectedEmoji()) {
+                <div class="panel-hint">
+                  Клацніть на фото, щоб розмістити {{ selectedEmoji() }}
+                </div>
+              }
+              @if (activeTool() === 'pencil') {
+                <div class="panel-hint pencil-hint">
+                  ✏️ Намалюйте контур — виділена область стане окремим шаром
+                </div>
+              }
+            } @else {
+              <div class="fragments-grid">
+                @for (f of savedFragments(); track f.id) {
+                  <button
+                    class="fragment-btn"
+                    [class.selected]="selectedSavedFragmentId() === f.id"
+                    (click)="selectSavedFragment(f.id)"
+                    title="Розмістити фрагмент"
+                  >
+                    <img [src]="f.dataUrl" alt="Фрагмент" />
+                    <button
+                      class="fragment-delete-btn"
+                      (click)="$event.stopPropagation(); deleteSavedFragment(f.id)"
+                      title="Видалити"
+                    >✕</button>
+                  </button>
+                }
+                @if (!savedFragments().length) {
+                  <div class="fragments-empty">
+                    Намалюйте олівцем контур — він збережеться тут
+                  </div>
+                }
               </div>
+              @if (selectedSavedFragmentId()) {
+                <div class="panel-hint">
+                  Клацніть на фото, щоб розмістити фрагмент
+                </div>
+              }
             }
           }
         </div>
@@ -203,6 +240,13 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
   savedFlash = signal(false);
   canvasCursor = signal('default');
 
+  activePanel = signal<'emojis' | 'fragments'>('emojis');
+  savedFragments = signal<SavedFragment[]>([]);
+  selectedSavedFragmentId = signal<string | null>(null);
+
+  private readonly storage = inject(StorageService);
+  private readonly fragmentCache = new Map<string, HTMLCanvasElement>();
+
   private photo: HTMLImageElement | null = null;
   private ctx!: CanvasRenderingContext2D;
 
@@ -225,6 +269,7 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
   ngAfterViewInit() {
     this.ctx = this.canvasRef.nativeElement.getContext('2d')!;
     if (this.photoDataUrl) this.loadPhoto();
+    this.savedFragments.set(this.storage.getFragments());
   }
 
   ngOnChanges() {
@@ -251,7 +296,29 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   selectEmoji(e: string) {
     this.selectedEmoji.set(this.selectedEmoji() === e ? '' : e);
-    if (this.selectedEmoji()) this.activeTool.set('move');
+    if (this.selectedEmoji()) {
+      this.activeTool.set('move');
+      this.selectedSavedFragmentId.set(null);
+    }
+  }
+
+  selectSavedFragment(id: string) {
+    this.selectedSavedFragmentId.set(this.selectedSavedFragmentId() === id ? null : id);
+    if (this.selectedSavedFragmentId()) {
+      this.selectedEmoji.set('');
+      this.activeTool.set('move');
+    }
+    this.updateCursor();
+  }
+
+  deleteSavedFragment(id: string) {
+    this.storage.deleteFragment(id);
+    this.savedFragments.set(this.storage.getFragments());
+    this.fragmentCache.delete(id);
+    if (this.selectedSavedFragmentId() === id) {
+      this.selectedSavedFragmentId.set(null);
+      this.updateCursor();
+    }
   }
 
   onEmojiSearch(event: Event) {
@@ -262,7 +329,7 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
     const tool = this.activeTool();
     if (tool === 'pencil') {
       this.canvasCursor.set('crosshair');
-    } else if (this.selectedEmoji()) {
+    } else if (this.selectedEmoji() || this.selectedSavedFragmentId()) {
       this.canvasCursor.set('copy');
     } else {
       this.canvasCursor.set('default');
@@ -404,9 +471,14 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
     // 3. Клік на порожньому місці — знімаємо виділення
     this.selectedLayerId.set(null);
 
-    // 4. Розміщення емодзі
+    // 4. Розміщення емодзі або фрагмента з бібліотеки
     if (this.selectedEmoji() && tool === 'move') {
       this.placeEmoji(x, y);
+      return;
+    }
+
+    if (this.selectedSavedFragmentId() && tool === 'move') {
+      this.placeFragmentFromLibrary(x, y);
       return;
     }
 
@@ -505,7 +577,7 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
       this.canvasCursor.set('grab');
     } else if (this.activeTool() === 'pencil') {
       this.canvasCursor.set('crosshair');
-    } else if (this.selectedEmoji()) {
+    } else if (this.selectedEmoji() || this.selectedSavedFragmentId()) {
       this.canvasCursor.set('copy');
     } else {
       this.canvasCursor.set('default');
@@ -607,9 +679,53 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
       width: w,
       height: h,
     };
+
+    const savedFrag = this.storage.saveFragment(off.toDataURL('image/png'));
+    this.savedFragments.set(this.storage.getFragments());
+    this.fragmentCache.set(savedFrag.id, off);
+
     this.layers.update((l) => [...l, layer]);
     this.setTool('move');
     this.render();
+  }
+
+  // ── Розміщення фрагмента з бібліотеки ──
+  private placeFragmentFromLibrary(x: number, y: number) {
+    const fragId = this.selectedSavedFragmentId();
+    if (!fragId) return;
+
+    const place = (off: HTMLCanvasElement) => {
+      const layer: FragmentLayer = {
+        id: crypto.randomUUID(),
+        type: 'fragment',
+        offscreen: off,
+        x: x - off.width / 2,
+        y: y - off.height / 2,
+        width: off.width,
+        height: off.height,
+      };
+      this.layers.update(l => [...l, layer]);
+      this.selectedSavedFragmentId.set(null);
+      this.updateCursor();
+      this.render();
+    };
+
+    const cached = this.fragmentCache.get(fragId);
+    if (cached) { place(cached); return; }
+
+    const fragment = this.savedFragments().find(f => f.id === fragId);
+    if (!fragment) return;
+
+    const img = new Image();
+    img.onload = () => {
+      const off = document.createElement('canvas');
+      off.width = img.width;
+      off.height = img.height;
+      off.getContext('2d')!.drawImage(img, 0, 0);
+      this.fragmentCache.set(fragId, off);
+      place(off);
+    };
+    img.src = fragment.dataUrl;
   }
 
   // ── Render ──
