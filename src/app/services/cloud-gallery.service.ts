@@ -17,7 +17,7 @@ export type RealtimeStatus = 'connecting' | 'live' | 'error';
 const TABLE = 'photos';
 const BUCKET = 'photos';
 const PAGE_SIZE = 12;
-const POLL_INTERVAL    = 30_000;
+const POLL_INTERVAL    = 5_000;
 const MAX_RECONNECT_MS = 60_000;
 
 @Injectable({ providedIn: 'root' })
