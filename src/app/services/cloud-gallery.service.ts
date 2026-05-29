@@ -200,6 +200,21 @@ export class CloudGalleryService implements OnDestroy {
     if (missed.length) this.photos.update(list => [...missed, ...list]);
   }
 
+  // ── Синхронізувати видалення: прибрати локальні фото яких більше нема в БД ─
+  private async syncDeletions(): Promise<void> {
+    const current = this.photos();
+    if (!current.length) return;
+    const { data } = await this.db
+      .from(TABLE)
+      .select('id')
+      .in('id', current.map(p => p.id));
+    if (!data) return;
+    const existingIds = new Set((data as { id: string }[]).map(p => p.id));
+    if (current.some(p => !existingIds.has(p.id))) {
+      this.photos.update(list => list.filter(p => existingIds.has(p.id)));
+    }
+  }
+
   // ── Exponential backoff reconnect ─────────────────────────────────────────
   private scheduleReconnect(): void {
     if (this.reconnectTimer) return;
@@ -214,7 +229,10 @@ export class CloudGalleryService implements OnDestroy {
   // ── Polling-fallback (завжди, як страховка від пропущених подій) ─────────
   private startPolling(): void {
     if (this.pollTimer) return;
-    this.pollTimer = setInterval(() => this.fetchMissedPhotos(), POLL_INTERVAL);
+    this.pollTimer = setInterval(() => {
+      this.fetchMissedPhotos();
+      this.syncDeletions();
+    }, POLL_INTERVAL);
   }
 
   private stopPolling(): void {
