@@ -3,7 +3,7 @@
   <header class="app-header">
     <div class="brand">
       <span class="brand-icon">📸</span>
-      <span class="brand-name">DragShot</span>
+      <span class="brand-name">DragShot</span><span class="brand-ver">v2</span>
     </div>
     <nav class="app-nav">
       <button
@@ -37,11 +37,18 @@
     <div class="error-banner">⚠️ {{ cloudGallery.error() }}</div>
   }
 
-  <!-- Update banner -->
+  <!-- Update modal -->
   @if (updateAvailable()) {
-    <div class="update-banner">
-      <span>🆕 Доступна нова версія</span>
-      <button class="update-btn" (click)="activateUpdate()">Оновити</button>
+    <div class="modal-backdrop" (click)="dismissUpdate()">
+      <div class="modal-box" (click)="$event.stopPropagation()">
+        <div class="modal-icon">🆕</div>
+        <h3 class="modal-title">Доступне оновлення</h3>
+        <p class="modal-text">Вийшла нова версія DragShot. Оновіть, щоб отримати останні зміни.</p>
+        <div class="modal-actions">
+          <button class="modal-btn primary" (click)="activateUpdate()">Оновити зараз</button>
+          <button class="modal-btn secondary" (click)="dismissUpdate()">Пізніше</button>
+        </div>
+      </div>
     </div>
   }
 

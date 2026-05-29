@@ -40,6 +40,18 @@
   letter-spacing: -0.02em;
 }
 
+.brand-ver {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #7c3aed;
+  background: rgba(124,58,237,0.15);
+  border: 1px solid rgba(124,58,237,0.3);
+  border-radius: 4px;
+  padding: 0.05rem 0.35rem;
+  align-self: center;
+  letter-spacing: 0.04em;
+}
+
 .app-nav {
   display: flex;
   gap: 0.5rem;
@@ -117,32 +129,84 @@
   flex-shrink: 0;
 }
 
-.update-banner {
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 2000;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.5rem 1.5rem;
-  background: rgba(124, 58, 237, 0.15);
-  border-bottom: 1px solid rgba(124, 58, 237, 0.35);
-  color: #c4b5fd;
-  font-size: 0.85rem;
-  flex-shrink: 0;
+  justify-content: center;
+  padding: 1.5rem;
+  backdrop-filter: blur(4px);
 }
 
-.update-btn {
-  background: linear-gradient(135deg, #7c3aed, #ec4899);
+.modal-box {
+  background: #1a1a2e;
+  border: 1px solid rgba(124, 58, 237, 0.35);
+  border-radius: 16px;
+  padding: 2rem 1.75rem 1.5rem;
+  max-width: 340px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+
+.modal-icon {
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  text-align: center;
+}
+
+.modal-text {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #94a3b8;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.modal-btn {
+  width: 100%;
+  padding: 0.65rem 1rem;
+  border-radius: 10px;
   border: none;
-  color: #fff;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   font-weight: 600;
-  padding: 0.3rem 1rem;
-  border-radius: 6px;
   cursor: pointer;
-  white-space: nowrap;
   transition: opacity 0.15s;
 }
-.update-btn:hover { opacity: 0.85; }
+
+.modal-btn.primary {
+  background: linear-gradient(135deg, #7c3aed, #ec4899);
+  color: #fff;
+}
+
+.modal-btn.secondary {
+  background: rgba(255, 255, 255, 0.07);
+  color: #94a3b8;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modal-btn:hover { opacity: 0.85; }
 
 @media (max-width: 640px) {
   .nav-icon {
