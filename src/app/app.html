@@ -37,6 +37,14 @@
     <div class="error-banner">⚠️ {{ cloudGallery.error() }}</div>
   }
 
+  <!-- Update banner -->
+  @if (updateAvailable()) {
+    <div class="update-banner">
+      <span>🆕 Доступна нова версія</span>
+      <button class="update-btn" (click)="activateUpdate()">Оновити</button>
+    </div>
+  }
+
   <!-- Main content -->
   <main class="app-main">
     @switch (view()) {

@@ -1,4 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { SwUpdate, VersionReadyEvent } from '@angular/service-worker';
+import { filter } from 'rxjs';
 import { CameraComponent } from './camera/camera.component';
 import { EditorComponent } from './editor/editor.component';
 import { GalleryComponent } from './gallery/gallery.component';
@@ -15,9 +17,11 @@ type View = 'camera' | 'editor' | 'gallery';
 })
 export class App implements OnInit {
   readonly cloudGallery = inject(CloudGalleryService);
+  private swUpdate      = inject(SwUpdate);
 
-  view         = signal<View>('camera');
-  currentPhoto = signal('');
+  view            = signal<View>('camera');
+  currentPhoto    = signal('');
+  updateAvailable = signal(false);
 
   // Проксі до сигналів сервісу
   get photos()    { return this.cloudGallery.photos; }
@@ -26,6 +30,19 @@ export class App implements OnInit {
   async ngOnInit() {
     await this.cloudGallery.loadPhotos();
     this.cloudGallery.subscribeRealtime();
+    this.watchForUpdates();
+  }
+
+  private watchForUpdates() {
+    if (!this.swUpdate.isEnabled) return;
+
+    this.swUpdate.versionUpdates.pipe(
+      filter((e): e is VersionReadyEvent => e.type === 'VERSION_READY'),
+    ).subscribe(() => this.updateAvailable.set(true));
+  }
+
+  activateUpdate() {
+    this.swUpdate.activateUpdate().then(() => location.reload());
   }
 
   onPhotoCaptured(dataUrl: string) {

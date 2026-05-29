@@ -3,6 +3,7 @@ import {
   Component,
   ElementRef,
   EventEmitter,
+  HostListener,
   Input,
   OnChanges,
   OnDestroy,
@@ -89,6 +90,11 @@ const EMOJIS = [
         </div>
         <div class="tool-sep"></div>
         <div class="tool-group">
+          @if (selectedLayerId()) {
+            <button class="tool-btn danger" (click)="deleteSelectedLayer()" title="Видалити виділений елемент (Delete)">
+              <span class="btn-icon">✂️</span> Видалити
+            </button>
+          }
           @if (layers().length) {
             <button class="tool-btn danger" (click)="clearLayers()" title="Очистити шари">
               <span class="btn-icon">🗑</span> Очистити
@@ -708,6 +714,23 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.ctx.stroke();
 
     this.ctx.restore();
+  }
+
+  deleteSelectedLayer() {
+    const id = this.selectedLayerId();
+    if (!id) return;
+    this.layers.update(l => l.filter(layer => layer.id !== id));
+    this.selectedLayerId.set(null);
+    this.render();
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onKeyDown(e: KeyboardEvent) {
+    if ((e.key === 'Delete' || e.key === 'Backspace') && this.selectedLayerId()) {
+      // не видаляємо якщо фокус у текстовому полі (пошук емодзі)
+      if ((e.target as HTMLElement).tagName === 'INPUT') return;
+      this.deleteSelectedLayer();
+    }
   }
 
   clearLayers() {
