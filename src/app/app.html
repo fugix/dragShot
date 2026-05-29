@@ -58,8 +58,10 @@
           [photos]="photos()"
           [loading]="cloudGallery.loading()"
           [currentUserId]="cloudGallery.currentUserId"
+          [hasMore]="cloudGallery.hasMore()"
           (back)="goToCamera()"
           (deletePhoto)="onDeletePhoto($event)"
+          (loadMore)="cloudGallery.loadMore()"
         />
       }
     }

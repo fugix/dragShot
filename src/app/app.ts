@@ -48,7 +48,8 @@ export class App implements OnInit {
 
   goToGallery() {
     this.view.set('gallery');
-    // Освіжаємо список при кожному відкритті галереї
-    this.cloudGallery.loadPhotos();
+    if (!this.cloudGallery.photos().length) {
+      this.cloudGallery.loadPhotos();
+    }
   }
 }

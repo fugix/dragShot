@@ -537,7 +537,7 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   // ── Emoji placement ──
   private placeEmoji(x: number, y: number) {
-    const size = window.innerWidth <= 640 ? 96 : 48;
+    const size = window.innerWidth <= 640 ? 173 : 86;
     const half = size / 2;
     const layer: EmojiLayer = {
       id: crypto.randomUUID(),
@@ -548,6 +548,7 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
       size,
     };
     this.layers.update((l) => [...l, layer]);
+    this.selectedEmoji.set('');
     this.render();
   }
 
