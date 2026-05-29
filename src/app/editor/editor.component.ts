@@ -75,14 +75,6 @@ const EMOJIS = [
         <div class="tool-group">
           <button
             class="tool-btn"
-            [class.active]="activeTool() === 'move'"
-            (click)="setTool('move')"
-            title="Переміщення (M)"
-          >
-            <span class="btn-icon">✋</span> Рухати
-          </button>
-          <button
-            class="tool-btn"
             [class.active]="activeTool() === 'pencil'"
             (click)="setTool('pencil')"
             title="Виділення олівцем"
