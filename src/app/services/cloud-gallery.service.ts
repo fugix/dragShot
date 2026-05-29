@@ -17,7 +17,7 @@ export type RealtimeStatus = 'connecting' | 'live' | 'error';
 const TABLE = 'photos';
 const BUCKET = 'photos';
 const PAGE_SIZE = 12;
-const POLL_INTERVAL    = 60_000;
+const POLL_INTERVAL    = 30_000;
 const MAX_RECONNECT_MS = 60_000;
 
 @Injectable({ providedIn: 'root' })
@@ -152,6 +152,7 @@ export class CloudGalleryService implements OnDestroy {
     if (!this.supabaseSvc.configured) return;
 
     this.realtimeStatus.set('connecting');
+    this.startPolling();
 
     this.channel = this.db
       .channel('photos-realtime')
@@ -177,12 +178,10 @@ export class CloudGalleryService implements OnDestroy {
         if (status === 'SUBSCRIBED') {
           this.realtimeStatus.set('live');
           this.reconnectDelay = 3_000;
-          this.stopPolling();
           this.fetchMissedPhotos();
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           this.realtimeStatus.set('error');
           this.scheduleReconnect();
-          this.startPolling();
         }
       });
   }
@@ -212,12 +211,10 @@ export class CloudGalleryService implements OnDestroy {
     }, this.reconnectDelay);
   }
 
-  // ── Polling-fallback (тільки коли realtime недоступний) ───────────────────
+  // ── Polling-fallback (завжди, як страховка від пропущених подій) ─────────
   private startPolling(): void {
     if (this.pollTimer) return;
-    this.pollTimer = setInterval(() => {
-      if (this.realtimeStatus() !== 'live') this.fetchMissedPhotos();
-    }, POLL_INTERVAL);
+    this.pollTimer = setInterval(() => this.fetchMissedPhotos(), POLL_INTERVAL);
   }
 
   private stopPolling(): void {
