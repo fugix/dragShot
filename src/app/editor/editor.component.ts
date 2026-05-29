@@ -305,6 +305,14 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
     return Math.max(10, 10 * scale); // ~10px на екрані
   }
 
+  // Хіт-радіус більший ніж видима точка — для зручного тапу на мобільному
+  private handleHitRadius(): number {
+    const rect = this.canvasRef.nativeElement.getBoundingClientRect();
+    const scale = this.canvasRef.nativeElement.width / rect.width;
+    // На hi-DPI (мобільний) — мінімум 24 CSS px; на десктопі — стандартний розмір
+    return scale > 1.5 ? Math.max(this.handleSize() / 2, 24 * scale) : this.handleSize() / 2;
+  }
+
   // ── 8 маркерів для будь-якого прямокутника ──
   private getHandles(l: { x: number; y: number; width: number; height: number }): { name: string; cx: number; cy: number; cursor: string }[] {
     const { x, y, width: w, height: h } = l;
@@ -330,7 +338,7 @@ export class EditorComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   // ── Перевірка попадання у маркер (працює для будь-якого шару) ──
   private hitHandle(x: number, y: number, layer: Layer) {
-    const hs = this.handleSize() / 2;
+    const hs = this.handleHitRadius();
     return this.getHandles(this.layerBounds(layer)).find(
       h => Math.abs(x - h.cx) <= hs && Math.abs(y - h.cy) <= hs
     ) ?? null;
