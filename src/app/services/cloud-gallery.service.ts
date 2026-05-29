@@ -12,9 +12,13 @@ export interface CloudPhoto {
   created_at: string;
 }
 
+export type RealtimeStatus = 'connecting' | 'live' | 'error';
+
 const TABLE = 'photos';
 const BUCKET = 'photos';
 const PAGE_SIZE = 12;
+const POLL_INTERVAL    = 60_000;
+const MAX_RECONNECT_MS = 60_000;
 
 @Injectable({ providedIn: 'root' })
 export class CloudGalleryService implements OnDestroy {
@@ -23,14 +27,18 @@ export class CloudGalleryService implements OnDestroy {
 
   private get db() { return this.supabaseSvc.client; }
 
-  photos    = signal<CloudPhoto[]>([]);
-  uploading = signal(false);
-  loading   = signal(false);
-  hasMore   = signal(false);
-  error     = signal('');
+  photos         = signal<CloudPhoto[]>([]);
+  uploading      = signal(false);
+  loading        = signal(false);
+  hasMore        = signal(false);
+  error          = signal('');
+  realtimeStatus = signal<RealtimeStatus>('connecting');
 
-  private offset = 0;
-  private channel: ReturnType<typeof this.db.channel> | null = null;
+  private offset         = 0;
+  private channel:        ReturnType<typeof this.db.channel> | null = null;
+  private reconnectDelay = 3_000;
+  private reconnectTimer: ReturnType<typeof setTimeout>  | null = null;
+  private pollTimer:      ReturnType<typeof setInterval> | null = null;
 
   // ── Завантажити першу сторінку ────────────────────────────────────────────
   async loadPhotos(): Promise<void> {
@@ -143,6 +151,8 @@ export class CloudGalleryService implements OnDestroy {
   subscribeRealtime(): void {
     if (!this.supabaseSvc.configured) return;
 
+    this.realtimeStatus.set('connecting');
+
     this.channel = this.db
       .channel('photos-realtime')
       .on(
@@ -163,7 +173,57 @@ export class CloudGalleryService implements OnDestroy {
           this.photos.update(list => list.filter(p => p.id !== deletedId));
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          this.realtimeStatus.set('live');
+          this.reconnectDelay = 3_000;
+          this.stopPolling();
+          this.fetchMissedPhotos();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          this.realtimeStatus.set('error');
+          this.scheduleReconnect();
+          this.startPolling();
+        }
+      });
+  }
+
+  // ── Підтягнути фото, що могли з'явитись під час розриву ──────────────────
+  private async fetchMissedPhotos(): Promise<void> {
+    const latest = this.photos()[0];
+    if (!latest) return;
+    const { data } = await this.db
+      .from(TABLE)
+      .select('*')
+      .gt('created_at', latest.created_at)
+      .order('created_at', { ascending: false });
+    if (!data?.length) return;
+    const missed = (data as CloudPhoto[]).filter(p => !this.photos().some(e => e.id === p.id));
+    if (missed.length) this.photos.update(list => [...missed, ...list]);
+  }
+
+  // ── Exponential backoff reconnect ─────────────────────────────────────────
+  private scheduleReconnect(): void {
+    if (this.reconnectTimer) return;
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      if (this.channel) { this.db.removeChannel(this.channel); this.channel = null; }
+      this.reconnectDelay = Math.min(this.reconnectDelay * 2, MAX_RECONNECT_MS);
+      this.subscribeRealtime();
+    }, this.reconnectDelay);
+  }
+
+  // ── Polling-fallback (тільки коли realtime недоступний) ───────────────────
+  private startPolling(): void {
+    if (this.pollTimer) return;
+    this.pollTimer = setInterval(() => {
+      if (this.realtimeStatus() !== 'live') this.fetchMissedPhotos();
+    }, POLL_INTERVAL);
+  }
+
+  private stopPolling(): void {
+    if (!this.pollTimer) return;
+    clearInterval(this.pollTimer);
+    this.pollTimer = null;
   }
 
   // ── Генерація мініатюри ───────────────────────────────────────────────────
@@ -204,5 +264,7 @@ export class CloudGalleryService implements OnDestroy {
 
   ngOnDestroy(): void {
     if (this.channel) this.db.removeChannel(this.channel);
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.stopPolling();
   }
 }

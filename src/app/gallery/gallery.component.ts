@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Input, Output, signal } from '@angular/core';
-import { CloudPhoto } from '../services/cloud-gallery.service';
+import { CloudPhoto, RealtimeStatus } from '../services/cloud-gallery.service';
 
 @Component({
   selector: 'app-gallery',
@@ -8,7 +8,7 @@ import { CloudPhoto } from '../services/cloud-gallery.service';
   template: `
     <div class="gallery-root">
       <div class="gallery-header">
-        <h2>Галерея</h2>
+        <h2>Галерея <span class="rt-badge rt-{{ realtimeStatus }}">{{ rtLabel }}</span></h2>
         <button class="btn-back" (click)="back.emit()">← Назад</button>
       </div>
 
@@ -92,6 +92,14 @@ export class GalleryComponent {
   @Input() currentUserId = '';
   @Input() loading = false;
   @Input() hasMore = false;
+  @Input() realtimeStatus: RealtimeStatus = 'connecting';
+
+  get rtLabel() {
+    const map: Record<RealtimeStatus, string> = {
+      live: 'наживо', connecting: 'з\'єднання…', error: 'оффлайн',
+    };
+    return map[this.realtimeStatus];
+  }
 
   @Output() back        = new EventEmitter<void>();
   @Output() deletePhoto = new EventEmitter<{ id: string; storagePath: string }>();

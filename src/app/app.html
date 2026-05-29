@@ -84,6 +84,7 @@
           [loading]="cloudGallery.loading()"
           [currentUserId]="cloudGallery.currentUserId"
           [hasMore]="cloudGallery.hasMore()"
+          [realtimeStatus]="cloudGallery.realtimeStatus()"
           (back)="goToCamera()"
           (deletePhoto)="onDeletePhoto($event)"
           (loadMore)="cloudGallery.loadMore()"
