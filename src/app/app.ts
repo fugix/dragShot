@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { SwUpdate, VersionReadyEvent } from '@angular/service-worker';
 import { filter } from 'rxjs';
+import { version } from '../../package.json';
 import { CameraComponent } from './camera/camera.component';
 import { EditorComponent } from './editor/editor.component';
 import { GalleryComponent } from './gallery/gallery.component';
@@ -18,6 +19,8 @@ type View = 'camera' | 'editor' | 'gallery';
 export class App implements OnInit {
   readonly cloudGallery = inject(CloudGalleryService);
   private swUpdate      = inject(SwUpdate);
+
+  readonly appVersion = version;
 
   view            = signal<View>('camera');
   currentPhoto    = signal('');
@@ -74,8 +77,6 @@ export class App implements OnInit {
 
   goToGallery() {
     this.view.set('gallery');
-    if (!this.cloudGallery.photos().length) {
-      this.cloudGallery.loadPhotos();
-    }
+    this.cloudGallery.loadPhotos();
   }
 }
